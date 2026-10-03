@@ -18,6 +18,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
+    "@gsap/react": "file:vendor/gsap-react",
+    "gsap": "file:vendor/gsap",
     "lucide-react": "latest",
     "pg": "^8.23.0",
     "react": "latest",

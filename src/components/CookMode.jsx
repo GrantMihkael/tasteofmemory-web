@@ -45,6 +45,9 @@ function CookMode({ recipe }) {
   const [flipState, setFlipState] = useState({ active: false, direction: 'forward', targetIndex: null })
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('cook-mode-sound-enabled') !== 'false')
   const stepRef = useRef(null)
+  const ingredientsToggleRef = useRef(null)
+  const ingredientsPanelRef = useRef(null)
+  const wasIngredientsOpen = useRef(false)
   const flipTimer = useRef(null)
   const flipFrames = useRef([])
   const flipAudio = useRef(null)
@@ -89,6 +92,11 @@ function CookMode({ recipe }) {
 
   useEffect(() => { stepRef.current?.focus({ preventScroll: true }) }, [currentStepIndex])
   useEffect(() => {
+    if (ingredientsOpen) ingredientsPanelRef.current?.querySelector('button')?.focus()
+    else if (wasIngredientsOpen.current) ingredientsToggleRef.current?.focus()
+    wasIngredientsOpen.current = ingredientsOpen
+  }, [ingredientsOpen])
+  useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previousOverflow }
@@ -120,9 +128,9 @@ function CookMode({ recipe }) {
   if (!recipe) return <div className="cook-mode cook-missing"><h1>Recipe not found</h1><Link to="/">Return home</Link></div>
 
   return <div className={`cook-mode${ingredientsOpen ? ' ingredients-open' : ''}`}>
-    <header className="cook-header"><Link to={detailPath} className="cook-close" aria-label="Exit Cook Mode"><X /></Link><span>Cook mode</span><div className="cook-header-tools"><button className="cook-sound-toggle" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)} aria-label={soundEnabled ? 'Mute page flip sounds' : 'Turn on page flip sounds'}>{soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}</button><button className="ingredients-toggle" type="button" aria-expanded={ingredientsOpen} aria-controls="cook-ingredients" onClick={() => setIngredientsOpen((open) => !open)}><List size={18} /> Ingredients</button><strong>Step {currentStepIndex + 1} of {total}</strong></div></header>
-    <div className="cook-progress" aria-label={`${Math.round(((currentStepIndex + 1) / total) * 100)} percent complete`}><span style={{ transform: `scaleX(${(currentStepIndex + 1) / total})` }} /></div>
-    <aside className="cook-ingredients" id="cook-ingredients" aria-hidden={!ingredientsOpen}><div className="ingredients-drawer-heading"><div><span className="eyebrow">Keep close</span><h2>Ingredients</h2></div><button type="button" onClick={() => setIngredientsOpen(false)} aria-label="Close ingredients"><X /></button></div><ul>{recipe.ingredients.map((ingredient, index) => <li key={`${ingredient}-${index}`}>{ingredient}</li>)}</ul></aside>
+    <header className="cook-header"><Link to={detailPath} className="cook-close" aria-label="Exit Cook Mode"><X /></Link><span>Cook mode</span><div className="cook-header-tools"><button className="cook-sound-toggle" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)} aria-label={soundEnabled ? 'Mute page flip sounds' : 'Turn on page flip sounds'}>{soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}</button><button ref={ingredientsToggleRef} className="ingredients-toggle" type="button" aria-expanded={ingredientsOpen} aria-controls="cook-ingredients" onClick={() => setIngredientsOpen((open) => !open)}><List size={18} /> Ingredients</button><strong>Step {currentStepIndex + 1} of {total}</strong></div></header>
+    <div className="cook-progress" role="progressbar" aria-label="Recipe progress" aria-valuemin="1" aria-valuemax={total} aria-valuenow={currentStepIndex + 1} aria-valuetext={`Step ${currentStepIndex + 1} of ${total}`}><span style={{ transform: `scaleX(${(currentStepIndex + 1) / total})` }} /></div>
+    <aside ref={ingredientsPanelRef} className="cook-ingredients" id="cook-ingredients" aria-hidden={!ingredientsOpen} inert={!ingredientsOpen ? '' : undefined}><div className="ingredients-drawer-heading"><div><span className="eyebrow">Keep close</span><h2>Ingredients</h2></div><button type="button" onClick={() => setIngredientsOpen(false)} aria-label="Close ingredients"><X /></button></div><ul>{recipe.ingredients.map((ingredient, index) => <li key={`${ingredient}-${index}`}>{ingredient}</li>)}</ul></aside>
     {ingredientsOpen && <button className="ingredients-backdrop" type="button" onClick={() => setIngredientsOpen(false)} aria-label="Close ingredients" />}
     <main className="cook-step"><span className="eyebrow">{recipe.title}</span><div className="cook-page-stack"><div className={`cook-flip-depth${flipState.active ? ' is-flipping' : ''}`}><div className={`cook-flip-card${flipState.active ? ` is-flipping flip-${flipState.direction}` : ''}`}><StepFace className="cook-step-front" step={recipe.steps[currentStepIndex]} matchedIngredients={ingredientsByStep[currentStepIndex]} textRef={stepRef} /><StepFace className="cook-step-back" step={recipe.steps[flipState.targetIndex ?? currentStepIndex]} matchedIngredients={ingredientsByStep[flipState.targetIndex ?? currentStepIndex]} /></div></div></div><div className="cook-actions"><button className="button button-quiet" type="button" disabled={currentStepIndex === 0 || flipBusy} onClick={() => move(-1)}><ArrowLeft /> Back</button><button className="button button-dark" type="button" disabled={flipBusy} onClick={() => currentStepIndex === total - 1 ? navigate(detailPath) : move(1)}>{currentStepIndex === total - 1 ? 'Finish' : 'Next step'} <ArrowRight /></button></div></main>
     <SpotifyPlayer returnPath={`/recipes/${recipe.id}/cook`} />

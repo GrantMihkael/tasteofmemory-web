@@ -1,7 +1,10 @@
 import { ChefHat, LogOut, Plus, Shuffle } from 'lucide-react'
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useGSAP } from '@gsap/react'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import appLogo from '../tasteofmemory logo.png'
 import CategoryFilter from './components/CategoryFilter'
 import { useConfirm } from './components/ConfirmModal'
@@ -14,6 +17,8 @@ import SpotifyCallback from './components/SpotifyCallback'
 import LoginPage from './components/LoginPage'
 
 const recipeCategories = ['Favorites', 'Pastas', 'Sauces', 'Seafood', 'Meat & Poultry']
+
+gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 async function apiRequest(path, options) {
   const response = await fetch(path, options)
@@ -43,20 +48,20 @@ function App() {
 
   useEffect(() => {
     let active = true
-    fetch('/api/session').then(async (response) => {
+    const openSession = async () => {
+      const response = await fetch('/api/session')
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body.error || 'Unable to check the archive session.')
-      if (active) setAuthStatus(body.authenticated ? 'authenticated' : 'signed-out')
-    }).catch((requestError) => { if (active) { setError(requestError.message); setAuthStatus('signed-out') } })
+      if (!body.authenticated) {
+        if (active) { setIsLoading(false); setAuthStatus('signed-out') }
+        return
+      }
+      const data = await apiRequest('/api/recipes')
+      if (active) { setRecipes(data); setIsLoading(false); setAuthStatus('authenticated') }
+    }
+    openSession().catch((requestError) => { if (active) { setError(requestError.message); setIsLoading(false); setAuthStatus('signed-out') } })
     return () => { active = false }
   }, [])
-
-  useEffect(() => {
-    if (authStatus !== 'authenticated') return undefined
-    let active = true
-    apiRequest('/api/recipes').then((data) => { if (active) setRecipes(data) }).catch((requestError) => { if (active) setError(requestError.message) }).finally(() => { if (active) setIsLoading(false) })
-    return () => { active = false }
-  }, [authStatus])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -76,7 +81,7 @@ function App() {
     const saved = await apiRequest('/api/recipes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recipe) })
     setRecipes((current) => [...current, saved])
     setNewRecipeId(saved.id)
-    setToast('Recipe saved!')
+    setToast('Recipe saved')
     return saved
   }
   const duplicateRecipe = async (recipe) => {
@@ -104,7 +109,7 @@ function App() {
     setError('')
     const saved = await apiRequest(`/api/recipes/${recipe.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recipe) })
     setRecipes((current) => current.map((item) => item.id === saved.id ? saved : item))
-    setToast('Recipe updated!')
+    setToast('Recipe updated')
   }
   const toggleFavorite = async (recipe, isFavorite) => {
     setError('')
@@ -136,12 +141,27 @@ function App() {
     setAuthStatus('signed-out')
   }
 
+  const finishLogin = async () => {
+    setError('')
+    setIsLoading(true)
+    try {
+      const data = await apiRequest('/api/recipes')
+      setRecipes(data)
+      setIsLoading(false)
+      setAuthStatus('authenticated')
+    } catch (requestError) {
+      setIsLoading(false)
+      throw requestError
+    }
+  }
+
   if (isOpening || authStatus === 'checking') return <div className="opening-screen" role="status" aria-live="polite"><div className="kitchen-loader"><img src={appLogo} alt="A Taste of Memory" /></div><p>Warming up the kitchen...</p></div>
-  if (authStatus !== 'authenticated') return <LoginPage onAuthenticated={() => { setError(''); setAuthStatus('authenticated') }} />
+  if (authStatus !== 'authenticated') return <LoginPage onAuthenticated={finishLogin} />
 
   return <div className="app-shell app-enter">
+    <a className="skip-link" href="#main-content">Skip to recipe archive</a>
     <header className="site-header"><Link className="brand" to="/"><span className="brand-mark"><img src={appLogo} alt="" /></span><span>A Taste of <i>Memory</i></span></Link><button className="header-logout" type="button" onClick={() => logout().catch((requestError) => setError(requestError.message))}><LogOut size={16} /> Log out</button></header>
-    <main>{error && <div className="api-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError('')}>Dismiss</button></div>}<Routes>
+    <main id="main-content">{error && <div className="api-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError('')}>Dismiss</button></div>}<Routes>
       <Route path="/" element={<Home recipes={filteredRecipes} total={recipes.length} isLoading={isLoading} searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} newRecipeId={newRecipeId} onEntryComplete={() => setNewRecipeId(null)} onToggleFavorite={toggleFavorite} onDeleteAll={deleteAllRecipes} onError={setError} />} />
       <Route path="/add" element={<FormPage title="Add a recipe" subtitle="Put something good into the family archive." onSubmit={addRecipe} onError={setError} />} />
       <Route path="/recipes/:id" element={<DetailPage recipes={recipes} onDelete={deleteRecipe} onDuplicate={duplicateRecipe} onError={setError} />} />
@@ -157,10 +177,13 @@ function App() {
 function Home({ recipes, total, isLoading, searchTerm, setSearchTerm, selectedCategory, setSelectedCategory, newRecipeId, onEntryComplete, onToggleFavorite, onDeleteAll, onError }) {
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const homeRef = useRef(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [isMobileView, setIsMobileView] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   const [surpriseRecipe, setSurpriseRecipe] = useState(null)
   const [surpriseFlipping, setSurpriseFlipping] = useState(false)
+  const featuredRecipe = recipes.find((recipe) => recipe.image) || recipes[0]
+  const archiveStatement = 'Recipes gathered from the people, places, and moments that make a kitchen feel like home.'
   const pageSize = isMobileView ? 5 : 8
   const recipePageCount = Math.max(1, Math.ceil(recipes.length / pageSize))
   const pageCount = recipePageCount + 1
@@ -209,6 +232,19 @@ function Home({ recipes, total, isLoading, searchTerm, setSearchTerm, selectedCa
     }
   }, [navigate, surpriseRecipe])
 
+  useGSAP(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+    const hero = homeRef.current?.querySelector('.home-intro')
+    const media = homeRef.current?.querySelector('.home-hero-media')
+    const words = homeRef.current?.querySelectorAll('.home-statement-word')
+    const cards = gsap.utils.toArray(homeRef.current?.querySelectorAll('.recipe-card') || [])
+    if (hero) gsap.from(hero.children, { y: 28, opacity: 0, duration: .72, stagger: .12, ease: 'power3.out' })
+    if (media) gsap.from(media, { scale: .92, rotate: 2, opacity: 0, duration: .9, delay: .1, ease: 'power3.out' })
+    if (words?.length) gsap.to(words, { opacity: 1, stagger: .018, ease: 'none', scrollTrigger: { trigger: hero, start: 'top 72%', end: 'bottom 36%', scrub: true } })
+    if (cards.length) gsap.to(cards, { y: (index) => -8 * (index % 3), ease: 'none', scrollTrigger: { trigger: homeRef.current?.querySelector('.recipe-grid'), start: 'top 85%', end: 'bottom 65%', scrub: .5 } })
+    return undefined
+  }, { scope: homeRef, dependencies: [recipes.length, currentPage, selectedCategory, searchTerm] })
+
   const surpriseMe = () => {
     if (!recipes.length) return
     const recipe = recipes[Math.floor(Math.random() * recipes.length)]
@@ -226,7 +262,7 @@ function Home({ recipes, total, isLoading, searchTerm, setSearchTerm, selectedCa
     if (!accepted) return
     try { await onDeleteAll() } catch (error) { onError(error.message) }
   }
-  return <section className="home-page"><div className="home-intro"><div><span className="eyebrow">The family archive</span><h1>A Taste of <i>Memory</i></h1><p>Recipes gathered from the people, places, and moments that make a kitchen feel like home.</p></div><div className="recipe-count"><strong>{String(total).padStart(2, '0')}</strong><span>recipes<br />kept close</span></div></div><div className="toolbar"><SearchBar value={searchTerm} onChange={setSearchTerm} /><button className="button button-quiet surprise-button" type="button" onClick={surpriseMe} disabled={isLoading || recipes.length === 0 || Boolean(surpriseRecipe)} title={!isLoading && recipes.length === 0 ? 'Nothing to surprise you with yet' : undefined}><Shuffle size={17} /> Surprise me</button><CategoryFilter categories={recipeCategories} value={selectedCategory} onChange={setSelectedCategory} /></div><div className="list-heading"><h2>Your recipe box</h2><div className="list-heading-tools"><span>{isLoading ? 'Loading...' : `${recipes.length} ${recipes.length === 1 ? 'recipe' : 'recipes'}`}</span><Link className="button button-quiet list-add-recipe" to="/add"><Plus size={16} /> Add recipe</Link>{total > 0 && <button type="button" onClick={removeAll}>Remove all</button>}</div></div>{isLoading ? <div className="data-loading" role="status">Gathering recipes from the kitchen...</div> : <><RecipeList key={`${searchTerm}-${selectedCategory}-${safePage}`} recipes={pageRecipes} newRecipeId={newRecipeId} onEntryComplete={onEntryComplete} onToggleFavorite={onToggleFavorite} onError={onError} showAddSlots={!isAddPage && safePage === recipePageCount} isAddPage={isAddPage} pageSize={pageSize} /><nav className="pagination" aria-label="Recipe pages"><button className="button button-quiet" type="button" disabled={safePage === 1} onClick={() => setCurrentPage((page) => page - 1)}>Previous</button><span>Page {safePage} of {pageCount}</span><button className="button button-quiet" type="button" disabled={safePage === pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next</button></nav></>}{surpriseRecipe && <div className="surprise-overlay" role="status" aria-live="polite" aria-label={`Surprise recipe: ${surpriseRecipe.title}`}><div className="surprise-scene"><div className={`surprise-card${surpriseFlipping ? ' is-flipped' : ''}`}><div className="surprise-card-face surprise-card-back" /><div className="surprise-card-face surprise-card-front">{surpriseRecipe.image ? <img src={surpriseRecipe.image} alt="" /> : <div className="surprise-image-placeholder"><ChefHat size={54} aria-hidden="true" /></div>}<div><span className="eyebrow">Your surprise</span><h2>{surpriseRecipe.title}</h2></div></div></div></div></div>}</section>
+  return <section className="home-page home-page--taste" ref={homeRef}><div className="home-intro home-intro--editorial"><div className="home-copy"><h1>A Taste <span className="home-inline-image" aria-hidden="true">{featuredRecipe?.image && <img src={featuredRecipe.image} alt="" />}</span> of <i>Memory</i></h1><p>{archiveStatement.split(' ').map((word, index) => <span className="home-statement-word" key={`${word}-${index}`}>{word}{' '}</span>)}</p><div className="home-hero-actions"><Link className="button button-dark" to="/add"><Plus size={17} /> Add a recipe</Link><button className="button button-quiet surprise-button" type="button" onClick={surpriseMe} disabled={isLoading || recipes.length === 0 || Boolean(surpriseRecipe)} title={!isLoading && recipes.length === 0 ? 'Nothing to surprise you with yet' : undefined}><Shuffle size={17} /> Surprise me</button></div></div><div className="home-hero-media">{featuredRecipe?.image ? <img src={featuredRecipe.image} alt={featuredRecipe.title} /> : <div className="home-hero-placeholder"><ChefHat size={64} aria-hidden="true" /></div>}<div className="home-hero-caption"><span>From the archive</span><strong>{featuredRecipe?.title || 'Your next family favorite'}</strong></div></div></div><div className="toolbar"><SearchBar value={searchTerm} onChange={setSearchTerm} /><CategoryFilter categories={recipeCategories} value={selectedCategory} onChange={setSelectedCategory} /></div><div className="list-heading"><div><h2>Your recipe box</h2><p>{isLoading ? 'Gathering recipes from the kitchen...' : `${total} ${total === 1 ? 'recipe' : 'recipes'} kept close`}</p></div><div className="list-heading-tools"><Link className="button button-quiet list-add-recipe" to="/add"><Plus size={16} /> Add recipe</Link>{total > 0 && <button type="button" onClick={removeAll}>Remove all</button>}</div></div>{isLoading ? <div className="data-loading" role="status">Gathering recipes from the kitchen...</div> : <><RecipeList key={`${searchTerm}-${selectedCategory}-${safePage}`} recipes={pageRecipes} newRecipeId={newRecipeId} onEntryComplete={onEntryComplete} onToggleFavorite={onToggleFavorite} onError={onError} showAddSlots={!isAddPage && safePage === recipePageCount} isAddPage={isAddPage} pageSize={pageSize} /><nav className="pagination" aria-label="Recipe pages"><button className="button button-quiet" type="button" disabled={safePage === 1} onClick={() => setCurrentPage((page) => page - 1)}>Previous</button><span>Page {safePage} of {pageCount}</span><button className="button button-quiet" type="button" disabled={safePage === pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next</button></nav></>}{surpriseRecipe && <div className="surprise-overlay" role="status" aria-live="polite" aria-label={`Surprise recipe: ${surpriseRecipe.title}`}><div className="surprise-scene"><div className={`surprise-card${surpriseFlipping ? ' is-flipped' : ''}`}><div className="surprise-card-face surprise-card-back" /><div className="surprise-card-face surprise-card-front">{surpriseRecipe.image ? <img src={surpriseRecipe.image} alt="" /> : <div className="surprise-image-placeholder"><ChefHat size={54} aria-hidden="true" /></div>}<div><span className="eyebrow">Your surprise</span><h2>{surpriseRecipe.title}</h2></div></div></div></div></div>}</section>
 }
 
 function FormPage({ title, subtitle, recipe, onSubmit, onError }) {

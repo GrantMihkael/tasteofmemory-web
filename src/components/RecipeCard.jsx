@@ -28,7 +28,7 @@ function RecipeCard({ recipe, isNew, onEntryComplete, onToggleFavorite, onError 
       <Link className="recipe-card-main" to={`/recipes/${recipe.id}`}>
         {recipe.category !== 'Favorites' && <span className="card-category">{recipe.category}</span>}
         <div className="recipe-card-image">
-          {recipe.image ? <img src={recipe.image} alt="" /> : <Utensils size={34} strokeWidth={1.2} aria-hidden="true" />}
+          {recipe.image ? <img src={recipe.image} alt="" loading="lazy" decoding="async" /> : <Utensils size={34} strokeWidth={1.2} aria-hidden="true" />}
         </div>
         <div className="recipe-card-copy">
           <h3>{recipe.title}</h3>

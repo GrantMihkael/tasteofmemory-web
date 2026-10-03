@@ -14,3 +14,6 @@ npm-debug.log*
 /public/REPORT.md
 /docs/
 /image.png
+
+.vercel
+.env*

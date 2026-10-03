@@ -50,11 +50,10 @@ function RecipeDetail({ recipe, onDelete, onDuplicate, onError }) {
           <h1>{recipe.title}</h1>
           <p className="detail-intro">A recipe worth keeping close, made for the table and the people around it.</p>
           {recipe.difficulty && <dl className="recipe-facts"><div><dt>Difficulty</dt><dd>{recipe.difficulty}</dd></div></dl>}
-          <div className="detail-actions">
+          <div className="detail-actions" aria-label="Recipe actions">
             <Link className="button button-cook" to={`/recipes/${recipe.id}/cook`}><ChefHat size={17} /> Start cooking</Link>
-            <Link className="button button-dark" to={`/recipes/${recipe.id}/edit`}><Edit3 size={17} /> Edit recipe</Link>
-            <button className="button button-quiet" type="button" onClick={handleDuplicate} disabled={isDuplicating}><Copy size={17} /> {isDuplicating ? 'Duplicating...' : 'Duplicate'}</button>
-            <button className="button button-quiet" type="button" onClick={handleDelete}><Trash2 size={17} /> Delete</button>
+            <Link className="button button-quiet" to={`/recipes/${recipe.id}/edit`}><Edit3 size={17} /> Edit recipe</Link>
+            <details className="recipe-more-actions"><summary>More actions</summary><div><button className="button button-quiet" type="button" onClick={handleDuplicate} disabled={isDuplicating}><Copy size={17} /> {isDuplicating ? 'Duplicating...' : 'Duplicate'}</button><button className="button button-danger" type="button" onClick={handleDelete}><Trash2 size={17} /> Delete recipe</button></div></details>
           </div>
         </div>
       </div>

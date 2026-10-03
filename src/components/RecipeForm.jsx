@@ -88,6 +88,7 @@ function RecipeForm({ initialRecipe, onSubmit, onCancel, isSubmitting = false })
   const [form, setForm] = useState(initialRecipe || emptyForm)
   const [ingredientDraft, setIngredientDraft] = useState('')
   const [stepDraft, setStepDraft] = useState('')
+  const [editingItem, setEditingItem] = useState(null)
   const [isProcessingImage, setIsProcessingImage] = useState(false)
   const ingredientInputRef = useRef(null)
   const stepInputRef = useRef(null)
@@ -122,7 +123,7 @@ function RecipeForm({ initialRecipe, onSubmit, onCancel, isSubmitting = false })
     if (accepted) update(field, form[field].filter((_, itemIndex) => itemIndex !== index))
   }
   const editItem = async (field, index) => {
-    const revised = window.prompt(`Edit ${field === 'ingredients' ? 'ingredient' : `step ${index + 1}`}:`, form[field][index])
+    const revised = null
     if (!revised?.trim() || revised.trim() === form[field][index]) return
     const accepted = await confirm({ title: 'Save this change?', message: `Replace “${form[field][index]}” with “${revised.trim()}”?`, confirmLabel: 'Save change' })
     if (!accepted) return
@@ -132,6 +133,13 @@ function RecipeForm({ initialRecipe, onSubmit, onCancel, isSubmitting = false })
     if (!form[field].length) return
     const accepted = await confirm({ title: `Remove all ${field}?`, message: `This will remove all ${form[field].length} ${field} from this recipe. This can't be undone.`, confirmLabel: 'Remove all' })
     if (accepted) update(field, [])
+  }
+  const beginEdit = (field, index) => setEditingItem({ field, index, value: form[field][index] })
+  const saveEdit = () => {
+    if (!editingItem) return
+    const revised = editingItem.value.trim()
+    if (revised) update(editingItem.field, form[editingItem.field].map((item, itemIndex) => itemIndex === editingItem.index ? revised : item))
+    setEditingItem(null)
   }
   const handleImage = async (event) => {
     const file = event.target.files?.[0]
@@ -155,13 +163,24 @@ function RecipeForm({ initialRecipe, onSubmit, onCancel, isSubmitting = false })
           <div className={`photo-preview${isProcessingImage ? ' photo-processing' : ''}`}>{form.image ? <img src={form.image} alt="Processed 4 by 3 recipe preview" /> : <Utensils size={38} strokeWidth={1.2} />}{isProcessingImage && <span>Processing...</span>}</div>
           <div><span className="field-title">Recipe photo</span><p>The preview shows the cropped photo exactly as it will be saved.</p><input id="recipe-photo" className="visually-hidden-file" type="file" accept="image/*" onChange={handleImage} disabled={isProcessingImage} /><label className="upload-button" htmlFor="recipe-photo"><ImagePlus size={16} /> {form.image ? 'Replace image' : 'Choose image'}</label></div>
         </div>
-        <div className="list-builder field-wide"><div className="builder-heading"><label className="field-title" htmlFor="ingredients-input">Ingredients</label><div className="builder-tools"><span>{form.ingredients.length} added</span>{form.ingredients.length > 0 && <button type="button" onClick={() => clearItems('ingredients')}><Trash2 size={14} /> Remove all</button>}</div></div><p className="builder-help">Type one ingredient, or paste a whole list with one ingredient per line.</p><div className="add-row add-row-list"><textarea id="ingredients-input" ref={ingredientInputRef} rows="1" value={ingredientDraft} onInput={(event) => resizeListInput(event.currentTarget)} onChange={(event) => setIngredientDraft(event.target.value)} onKeyDown={(event) => (event.ctrlKey || event.metaKey) && event.key === 'Enter' && (event.preventDefault(), addIngredientList())} placeholder="Add ingredients, one per line" aria-label="Ingredients, one per line" /><button className="icon-button" type="button" onClick={addIngredientList} aria-label="Add ingredient list"><Plus size={19} /></button></div><span className="keyboard-hint">Press Ctrl + Enter to add the list</span><ul className="draft-list">{form.ingredients.map((item, index) => <li key={`${item}-${index}`}><span>{item}</span><div className="draft-actions"><button type="button" onClick={() => editItem('ingredients', index)} aria-label={`Edit ${item}`}><Pencil size={14} /></button><button type="button" onClick={() => removeItem('ingredients', index)} aria-label={`Remove ${item}`}><Minus size={15} /></button></div></li>)}</ul></div>
-        <div className="list-builder field-wide"><div className="builder-heading"><label className="field-title" htmlFor="steps-input">Steps</label><div className="builder-tools"><span>{form.steps.length} added</span>{form.steps.length > 0 && <button type="button" onClick={() => clearItems('steps')}><Trash2 size={14} /> Remove all</button>}</div></div><p className="builder-help">Type one step, or paste the full method with one step per line.</p><div className="add-row add-row-list"><textarea id="steps-input" ref={stepInputRef} rows="1" value={stepDraft} onInput={(event) => resizeListInput(event.currentTarget)} onChange={(event) => setStepDraft(event.target.value)} onKeyDown={(event) => (event.ctrlKey || event.metaKey) && event.key === 'Enter' && (event.preventDefault(), addStepList())} placeholder="Add steps, one per line" aria-label="Recipe steps, one per line" /><button className="icon-button" type="button" onClick={addStepList} aria-label="Add step list"><Plus size={19} /></button></div><span className="keyboard-hint">Press Ctrl + Enter to add the list</span><ol className="draft-list numbered">{form.steps.map((item, index) => <li key={`${item}-${index}`}><span>{item}</span><div className="draft-actions"><button type="button" onClick={() => editItem('steps', index)} aria-label={`Edit step ${index + 1}`}><Pencil size={14} /></button><button type="button" onClick={() => removeItem('steps', index)} aria-label={`Remove step ${index + 1}`}><Minus size={15} /></button></div></li>)}</ol></div>
+        <div className="list-builder field-wide"><div className="builder-heading"><label className="field-title" htmlFor="ingredients-input">Ingredients</label><div className="builder-tools"><span>{form.ingredients.length} added</span>{form.ingredients.length > 0 && <button type="button" onClick={() => clearItems('ingredients')}><Trash2 size={14} /> Remove all</button>}</div></div><p className="builder-help">Type one ingredient, or paste a whole list with one ingredient per line.</p><div className="add-row add-row-list"><textarea id="ingredients-input" ref={ingredientInputRef} rows="1" value={ingredientDraft} onInput={(event) => resizeListInput(event.currentTarget)} onChange={(event) => setIngredientDraft(event.target.value)} onKeyDown={(event) => (event.ctrlKey || event.metaKey) && event.key === 'Enter' && (event.preventDefault(), addIngredientList())} placeholder="Add ingredients, one per line" aria-label="Ingredients, one per line" /><button className="icon-button" type="button" onClick={addIngredientList} aria-label="Add ingredient list"><Plus size={19} /></button></div><span className="keyboard-hint">Press Ctrl + Enter to add the list</span><ul className="draft-list">{form.ingredients.map((item, index) => <DraftItem key={`${item}-${index}`} item={item} field="ingredients" index={index} editingItem={editingItem} setEditingItem={setEditingItem} onEdit={() => beginEdit('ingredients', index)} onSave={saveEdit} onRemove={() => removeItem('ingredients', index)} />)}</ul></div>
+        <div className="list-builder field-wide"><div className="builder-heading"><label className="field-title" htmlFor="steps-input">Steps</label><div className="builder-tools"><span>{form.steps.length} added</span>{form.steps.length > 0 && <button type="button" onClick={() => clearItems('steps')}><Trash2 size={14} /> Remove all</button>}</div></div><p className="builder-help">Type one step, or paste the full method with one step per line.</p><div className="add-row add-row-list"><textarea id="steps-input" ref={stepInputRef} rows="1" value={stepDraft} onInput={(event) => resizeListInput(event.currentTarget)} onChange={(event) => setStepDraft(event.target.value)} onKeyDown={(event) => (event.ctrlKey || event.metaKey) && event.key === 'Enter' && (event.preventDefault(), addStepList())} placeholder="Add steps, one per line" aria-label="Recipe steps, one per line" /><button className="icon-button" type="button" onClick={addStepList} aria-label="Add step list"><Plus size={19} /></button></div><span className="keyboard-hint">Press Ctrl + Enter to add the list</span><ol className="draft-list numbered">{form.steps.map((item, index) => <DraftItem key={`${item}-${index}`} item={item} field="steps" index={index} editingItem={editingItem} setEditingItem={setEditingItem} onEdit={() => beginEdit('steps', index)} onSave={saveEdit} onRemove={() => removeItem('steps', index)} />)}</ol></div>
         <label className="field field-wide"><span>Notes from the kitchen</span><textarea rows="4" value={form.notes} onChange={(event) => update('notes', event.target.value)} placeholder="The story, the shortcut, or the person who taught you..." /></label>
       </div>
       <div className="form-actions"><button className="button button-dark" type="submit" disabled={isSubmitting || isProcessingImage}><Save size={17} /> {isProcessingImage ? 'Processing photo...' : isSubmitting ? 'Saving...' : 'Save recipe'}</button><button className="button button-quiet" type="button" onClick={onCancel} disabled={isSubmitting || isProcessingImage}>Cancel</button></div>
     </form>
   )
+}
+
+function DraftItem({ item, field, index, editingItem, setEditingItem, onEdit, onSave, onRemove }) {
+  const isEditing = editingItem?.field === field && editingItem.index === index
+  const inputLabel = field === 'ingredients' ? `Edit ingredient: ${item}` : `Edit step ${index + 1}`
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape') setEditingItem(null)
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); onSave() }
+  }
+
+  return <li>{isEditing ? <div className="inline-edit"><textarea autoFocus rows="1" value={editingItem.value} onChange={(event) => setEditingItem((current) => ({ ...current, value: event.target.value }))} onKeyDown={handleKeyDown} aria-label={inputLabel} /><div><button className="button button-quiet" type="button" onClick={onSave}>Save</button><button className="button button-quiet" type="button" onClick={() => setEditingItem(null)}>Cancel</button></div></div> : <><span>{item}</span><div className="draft-actions"><button type="button" onClick={onEdit} aria-label={inputLabel}><Pencil size={14} /></button><button type="button" onClick={onRemove} aria-label={`Remove ${field === 'ingredients' ? item : `step ${index + 1}`}`}><Minus size={15} /></button></div></>}</li>
 }
 
 export default RecipeForm
