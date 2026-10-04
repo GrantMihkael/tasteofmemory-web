@@ -258,6 +258,17 @@ h1, h2, h3, .brand i, .recipe-count strong, .notes-block p, .opening-screen p { 
 @media (max-width: 420px) { .pagination { gap: var(--space-1); }.pagination .button { padding-inline: var(--space-1); }.surprise-overlay { padding: var(--space-2); }.surprise-card-front > div:last-child { padding: var(--space-2); } }
 @media (prefers-reduced-motion: reduce) { .surprise-card { transition: none; }.surprise-card.is-flipped { transform: rotateY(180deg); } }
 
+/* Surprise Me: mobile card geometry must account for overlay padding and transforms. */
+@media (max-width: 420px) {
+  .surprise-overlay { align-items: center; min-width: 0; min-height: 100dvh; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); overflow: hidden; }
+  .surprise-scene { width: min(100%, 19rem); max-width: calc(100vw - 2rem); aspect-ratio: 4 / 3; transform: none; }
+  .surprise-card { transform: rotateY(0) translateY(6px) scale(.98); transition-duration: .44s; }
+  .surprise-card.is-flipped { transform: rotateY(180deg) translateY(0) scale(1); }
+  .surprise-card-face { box-shadow: 0 14px 30px color-mix(in srgb, var(--color-text) 14%, transparent); }
+  .surprise-card-front > div:last-child { min-width: 0; padding: .8rem 1rem; }
+  .surprise-card-front h2 { overflow-wrap: anywhere; font-size: clamp(1.35rem, 7vw, 1.75rem); }
+}
+
 /* Home layout polish: balanced controls and consistently sized index cards. */
 .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-2); row-gap: var(--space-2); align-items: center; }
 .search-box { width: 100%; max-width: none; }
@@ -861,6 +872,22 @@ footer { padding-top: 1.25rem; }
   .home-page--taste { padding-top: 1rem; }
   .home-page--taste .home-intro--editorial { margin-inline: 0; padding: 2.25rem 1.5rem 2.5rem; }
   .home-page--taste h1 { font-size: clamp(2.8rem, 14vw, 4rem); }
+}
+
+/* Final mobile Surprise Me override: preserve the viewport at 320–420px. */
+@media (max-width: 420px) {
+  .surprise-overlay { align-items: center; min-width: 0; min-height: 100dvh; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); overflow: hidden; }
+  .surprise-scene { width: min(100%, 19rem); max-width: calc(100vw - 2rem); aspect-ratio: 4 / 3; transform: none; }
+  .surprise-card { transform: rotateY(0) translateY(6px) scale(.98); transition-duration: .44s; }
+  .surprise-card.is-flipped { transform: rotateY(180deg) translateY(0) scale(1); }
+  .surprise-card-face { box-shadow: 0 14px 30px color-mix(in srgb, var(--color-text) 14%, transparent); }
+  .surprise-card-front > div:last-child { min-width: 0; padding: .8rem 1rem; }
+  .surprise-card-front h2 { overflow-wrap: anywhere; font-size: clamp(1.35rem, 7vw, 1.75rem); }
+}
+
+@media (max-width: 420px) and (prefers-reduced-motion: reduce) {
+  .surprise-card,
+  .surprise-card.is-flipped { transition: none; transform: none; }
 }
 
 /* A distinct discovery action belongs beside the archive introduction. */
