@@ -73,7 +73,7 @@ This document records how AI assistance was used while building A Taste of Memor
 - **What AI gave me:** The reveal card used a `90vw` width and was then enlarged with a scale transform.
 - **What was wrong:** At narrow phone widths, the scaled card plus overlay padding could exceed the viewport and clip the animation.
 - **What I did instead:** I limited the card width, removed the mobile scene scale, reduced the shadow/transition, and retained reduced-motion support.
-- **Commit:** [UI and UX improvements](https://github.com/GrantMihkael/tasteofmemory-web/commit/bb5c0cb)
+- **Commit:** [Mobile Surprise Me fix](https://github.com/GrantMihkael/tasteofmemory-web/commit/c890c64)
 
 ## 3. Who wrote what
 
@@ -114,7 +114,7 @@ This document records how AI assistance was used while building A Taste of Memor
 #### Responsive Surprise Me styling
 
 - **File:** `src/index.css`
-- **Commit:** [UI and UX improvements](https://github.com/GrantMihkael/tasteofmemory-web/commit/bb5c0cb)
+- **Commit:** [Mobile Surprise Me fix](https://github.com/GrantMihkael/tasteofmemory-web/commit/c890c64)
 - **What it does and why it was kept:** The CSS uses a fixed overlay and a 3D card transform to reveal a randomly selected recipe. On mobile, the card width is constrained with `min()` and `max-width` so it fits within the viewport. The `prefers-reduced-motion` media query removes the animated transition for people who request less motion. I understand that the random recipe is selected in `App.jsx`, while the CSS controls only the presentation.
 
 ## Review statement
