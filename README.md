@@ -8,6 +8,8 @@ This project used OpenAI Codex extensively for UI review, responsive styling, de
 
 See [AI-USAGE.md](AI-USAGE.md) for the full AI-use record.
 
+See [SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md) for the final security and privacy review.
+
 ## Main features
 
 - Shared-password login with signed HTTP-only session cookies

@@ -5,7 +5,6 @@ npm-debug.log*
 
 # Course-only submission files; keep them locally but do not publish with app code.
 /Finals Week1_REPORT.md
-/SECURITY-CHECKLIST.md
 /DESIGN_SYSTEM.md
 /proposal.md
 /wireframes.md
